@@ -2,13 +2,14 @@
 PImage wallpaper;
 PImage rock;
 PImage target;
-
+PImage flippedTarget;
 // Librería de sonido
 import processing.sound.*;
 SoundFile song;
 SoundFile bow;
-Soundfile silverfish
-
+SoundFile hit1;
+SoundFile hit2;
+SoundFile hit3;
 
 // Utilizadas para la intensidad del tiro
 float distance; 
@@ -27,14 +28,52 @@ float y = 0;
 float incX;
 float incY = 100;
 
+// Utilizadas por el endermite
+float targetX = width/2;
+float targetSpeed = 10;
+float targetDirection = 1;
+float targetY = 350;
+
+
+// Timer
+int seconds = 59;
+
+// Score
+int score = 0;
+
+// Hace que la colisión aumente de 1 en 1 el puntaje,
+// hay posibilidad que la colisión dure más de lo esperado
+// agregando demasiados puntos
+boolean scored = false;
+
+// Hitbox de la bola de nieve
+float snowWidth = 40;
+float snowHeight = 40;
+
+// Hitbox del endermite
+float enderWidth = 50;
+float enderHeight = 50;
+
 void setup(){
   size(600, 400);
   // El archivo necesita dirección relativa
-  wallpaper = loadImage("6.png");
-  rock = loadImage("diamond.png");
+  wallpaper = loadImage("endCity.png");
+  // Proyectil y su hitbox
+  rock = loadImage("snowball.png");
+
+  
+  // Enemigo y su hitbox
+  target = loadImage("endermite.png");
+
+  
+
   frameRate(30);
   
   bow = new SoundFile(this, "bow.mp3");
+  
+  hit1 = new SoundFile(this, "hit1.mp3");
+  hit2 = new SoundFile(this, "hit2.mp3");
+  hit3 = new SoundFile(this, "hit3.mp3");
   
   song = new SoundFile(this, "calm1.mp3");
   song.loop();
@@ -44,6 +83,7 @@ void setup(){
 }
 
 boolean update;
+
 void mousePressed(){
   // Pausar
   update = false;
@@ -74,8 +114,6 @@ float getY(){
   return y;
 }
 
-
-
 void drawUI(){
   // Botón pausa
   fill(#FF0080);
@@ -101,9 +139,23 @@ void drawUI(){
   
   // Botón intensidad
   fill(#FFB8DB);
-  rect(500, 80, 60, 30, 3);
+  rect(500, 70, 60, 30, 3);
   fill(#000000);
-  text(level, 525, 100);
+  text(level, 525, 90);
+  
+  // Botón timer
+  fill(#FFB8DB);
+  rect(500, 140, 60, 30, 3);
+  fill(#000000);
+  text(seconds, 525, 160);
+  
+  // Botón aciertos
+  fill(#F03A95);
+  rect(500, 180, 60, 30, 3);
+  fill(#FFFFFF);
+  text("Puntos", 510, 195);  
+  text(score, 525, 205);
+
 }
 
 void nextPosition(){
@@ -114,22 +166,41 @@ void nextPosition(){
 }
 
 boolean played = false;
-void drawEverything(){ 
+
+void drawSnowball(){
   if(update == true)
-    power = intensities * level;
+     power = intensities * level;
     
   distance = sqrt(height * height + (power/2) * (power/2));
   incX = distance * 0.015;
 
-  image(wallpaper, 0, 0, width, height);
   if(played == false){
       bow.play();
       played = true;
   }
 
-  image(rock, x, getY(), 50, 50);
+  y = getY();
+  fill(0,0,0,0);
+  stroke(0,0,0,0);
+  rect(x, y, snowWidth, snowHeight);
+  image(rock, x, y, snowWidth, snowHeight);
+
   nextPosition();
+}
+
+void drawTarget(){
+  targetX += targetSpeed * targetDirection;
+  
+  if (targetX > width - 60 || targetX < 10)
+    targetDirection *= -1;
     
+  rect(targetX, targetY, enderWidth, enderHeight); 
+  image(target, targetX, targetY, enderWidth, enderHeight);
+}
+
+void drawEverything(){ 
+  drawSnowball();
+  drawTarget();
   drawUI();
 }
 
@@ -140,8 +211,53 @@ void restartLaunch(){
     y = 0;
   played = false;
   update = true;
+  scored = false;
+}
+
+void gameOver(){
+  fill(#F03A95);
+  rect(height/2, width/2, 200, 90, 3);
+  fill(#FFFFFF);
+  text("Fin del juego", height/2 + 70, width/2 + 50);
+  noLoop();
+}
+
+boolean hits(float x, float y, float snowWidth, float snowHeight, float targetX, float targetY, float enderWidth, float enderHeight){
+               // Choque en x
+               boolean hitX = x < targetX + enderWidth && x + snowWidth > targetX;
+               
+               // Choque en y
+               boolean hitY = y < targetY + enderHeight - 5 && y + snowHeight > targetY + 10;
+               
+               // Si ambos se tocan en x e y, retorna true
+               return hitX && hitY;
 }
 
 void draw(){
+    image(wallpaper, 0, 0, width, height);
+    if(frameCount % 30 == 0)
+      seconds--; // subtract 1 from the timer
     drawEverything();
+    if(hits(x, y, snowWidth, snowHeight, targetX, targetY, enderWidth, enderHeight)){
+      if(scored == false){
+          int choose = int(random(3));
+          switch(choose){
+            case 0:
+              hit1.play();
+              break;
+            case 1:
+              hit2.play();
+              break;
+            case 2:
+              hit3.play();
+              break;
+          }
+          score++;
+          scored = true;
+          delay(100);
+      }
+    }
+      
+    if(seconds == 0)
+      gameOver();
 }
